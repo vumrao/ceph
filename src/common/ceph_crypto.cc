@@ -35,7 +35,7 @@ ceph::crypto::HMACSHA1::~HMACSHA1()
 {
 }
 
-#elif USE_NSS
+#elif defined(USE_NSS)
 
 // Initialization of NSS requires a mutex due to a race condition in
 // NSS_NoDB_Init.
