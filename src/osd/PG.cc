@@ -932,8 +932,9 @@ map<pg_shard_t, pg_info_t>::const_iterator PG::find_best_info(
       best = p;
       continue;
     }
-    // Prefer newer last_update
+
     if (pool.info.require_rollback()) {
+      // Prefer older last_update for ec pools (we can rollback, not forward)
       if (p->second.last_update > best->second.last_update)
 	continue;
       if (p->second.last_update < best->second.last_update) {
@@ -941,6 +942,17 @@ map<pg_shard_t, pg_info_t>::const_iterator PG::find_best_info(
 	continue;
       }
     } else {
+      /* Prefer newer last_update for non-ec pools, but only after preferring
+       * a newer last_complete */
+      if ((get_min_peer_features() & CEPH_FEATURE_OSD_DEGRADED_WRITES)) {
+	if (p->second.last_complete < best->second.last_update)
+	  continue;
+	if (p->second.last_complete > best->second.last_complete) {
+	  best = p;
+	  continue;
+	}
+      }
+
       if (p->second.last_update < best->second.last_update)
 	continue;
       if (p->second.last_update > best->second.last_update) {
