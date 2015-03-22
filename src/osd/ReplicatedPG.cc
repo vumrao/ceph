@@ -6685,9 +6685,10 @@ void ReplicatedPG::finish_copyfrom(OpContext *ctx)
 
   // CopyFromCallback fills this in for us
   obs.oi.user_version = ctx->user_at_version;
-
-  obs.oi.set_data_digest(cb->results->data_digest);
-  obs.oi.set_omap_digest(cb->results->omap_digest);
+  if (cb->results->object_size)
+    obs.oi.set_data_digest(cb->results->data_digest);
+  if (cb->results->has_omap)
+    obs.oi.set_omap_digest(cb->results->omap_digest);
 
   ctx->extra_reqids = cb->results->reqids;
 
