@@ -109,6 +109,9 @@ EXTRA_DIST += \
 	$(srcdir)/test/centos-7/Dockerfile.in \
 	$(srcdir)/test/centos-7/install-deps.sh \
 	$(srcdir)/test/centos-7/ceph.spec.in \
+	$(srcdir)/test/opensuse-13.2/Dockerfile.in \
+	$(srcdir)/test/opensuse-13.2/install-deps.sh \
+	$(srcdir)/test/opensuse-13.2/ceph.spec.in \
 	$(srcdir)/test/mon/mon-test-helpers.sh \
 	$(srcdir)/test/osd/osd-test-helpers.sh \
         $(srcdir)/test/coverage.sh \
@@ -277,6 +280,11 @@ unittest_bufferlist_SOURCES = test/bufferlist.cc
 unittest_bufferlist_LDADD = $(UNITTEST_LDADD) $(CEPH_GLOBAL)
 unittest_bufferlist_CXXFLAGS = $(UNITTEST_CXXFLAGS)
 check_PROGRAMS += unittest_bufferlist
+
+unittest_xlist_SOURCES = test/test_xlist.cc
+unittest_xlist_LDADD = $(UNITTEST_LDADD) $(LIBCOMMON)
+unittest_xlist_CXXFLAGS = $(UNITTEST_CXXFLAGS)
+check_PROGRAMS += unittest_xlist
 
 unittest_crc32c_SOURCES = test/common/test_crc32c.cc
 unittest_crc32c_LDADD = $(UNITTEST_LDADD) $(CEPH_GLOBAL)
