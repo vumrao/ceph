@@ -3541,8 +3541,7 @@ reprotect_and_return_err:
 	c->add_request();
 
 	req->set_op_flags(op_flags);
-	r = req->send();
-        assert(r == 0);
+	req->send();
       }
     }
 
@@ -3681,8 +3680,7 @@ reprotect_and_return_err:
 			  snapc, req_comp);
       }
 
-      r = req->send();
-      assert(r == 0);
+      req->send();
     }
 
     if (ictx->object_cacher) {
@@ -3846,8 +3844,7 @@ reprotect_and_return_err:
 				    q->length, q->offset,
 				    cache_comp, op_flags);
 	} else {
-	  r = req->send();
-          assert(r == 0);
+	  req->send();
 	}
       }
     }
