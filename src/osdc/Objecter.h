@@ -1305,10 +1305,10 @@ public:
 
   // Pools and statistics 
   struct NListContext {
-    int current_pg;
+    uint32_t current_pg;
     collection_list_handle_t cookie;
     epoch_t current_pg_epoch;
-    int starting_pg_num;
+    uint32_t starting_pg_num;
     bool at_end_of_pool;
     bool at_end_of_pg;
 
@@ -1316,6 +1316,16 @@ public:
     int pool_snap_seq;
     int max_entries;
     string nspace;
+
+    // Worker n (from zero) of ...
+    uint32_t worker_n;
+    // ...total m workers.  Or m=0 if not using multiple workers.
+    uint32_t worker_m;
+
+    uint64_t object_hash_low;
+    // Drop objects greater than hash_high (not equal to)
+    // In HashIndex nibble encoding
+    uint64_t object_hash_high;
 
     bufferlist bl;   // raw data read to here
     std::list<librados::ListObjectImpl> list;
@@ -1337,6 +1347,10 @@ public:
 		    pool_snap_seq(0),
                     max_entries(0),
                     nspace(),
+                    worker_n(0),
+                    worker_m(0),
+                    object_hash_low(0),
+                    object_hash_high(0),
                     bl(),
                     list(),
                     filter(),
@@ -1349,6 +1363,14 @@ public:
 
     uint32_t get_pg_hash_position() const {
       return current_pg;
+    }
+
+    /**
+     * True if this context is iterating over a hash range,
+     * false if it is iterating over all objects
+     */
+    bool is_sharded() const {
+      return worker_m > 0;
     }
   };
 
@@ -1800,6 +1822,7 @@ private:
   void _reopen_session(OSDSession *session);
   void close_session(OSDSession *session);
   
+  void _nlist_recalc_limits(NListContext *list_context);
   void _nlist_reply(NListContext *list_context, int r, Context *final_finish,
 		   epoch_t reply_epoch);
   void _list_reply(ListContext *list_context, int r, Context *final_finish,
