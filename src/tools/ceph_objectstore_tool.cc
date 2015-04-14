@@ -859,12 +859,12 @@ int write_info(ObjectStore::Transaction &t, epoch_t epoch, pg_info_t &info,
 }
 
 int write_pg(ObjectStore::Transaction &t, epoch_t epoch, pg_info_t &info,
-    pg_log_t &log, map<epoch_t,pg_interval_t> &past_intervals)
+    pg_log_t &log, map<epoch_t,pg_interval_t> &past_intervals,
+    map<eversion_t, hobject_t> &divergent_priors)
 {
   int ret = write_info(t, epoch, info, past_intervals);
   if (ret)
     return ret;
-  map<eversion_t, hobject_t> divergent_priors;
   coll_t coll(info.pgid);
   map<string,bufferlist> km;
   PGLog::write_log(t, &km, log, coll, info.pgid.make_pgmeta_oid(), divergent_priors);
@@ -1733,6 +1733,38 @@ int do_import_rados(string pool)
   return 0;
 }
 
+
+typedef map<eversion_t, hobject_t> divergent_priors_t;
+
+// out: pg_log_t that only has entries that apply to import_pgid using curmap
+// reject: Entries rejected from "in" are in the reject.log.  Other fields not set.
+void filter_divergent_priors(spg_t import_pgid, const OSDMap &curmap,
+  const string &hit_set_namespace, const divergent_priors_t &in,
+  divergent_priors_t &out, divergent_priors_t &reject)
+{
+  out.clear();
+  reject.clear();
+
+  for (divergent_priors_t::const_iterator i = in.begin();
+       i != in.end(); ++i) {
+
+    if (i->second.nspace != hit_set_namespace) {
+      object_t oid = i->second.oid;
+      object_locator_t loc(i->second);
+      pg_t raw_pgid = curmap.object_locator_to_pg(oid, loc);
+      pg_t pgid = curmap.raw_pg_to_pg(raw_pgid);
+
+      if (import_pgid.pgid == pgid) {
+        out.insert(*i);
+      } else {
+        reject.insert(*i);
+      }
+    } else {
+      out.insert(*i);
+    }
+  }
+}
+
 int do_import(ObjectStore *store, OSDSuperblock& sb, bool force)
 {
   bufferlist ebl;
@@ -1889,8 +1921,20 @@ int do_import(ObjectStore *store, OSDSuperblock& sb, bool force)
       cerr << "Skipping log entry " << *i << std::endl;
   }
 
+  divergent_priors_t newdp, rejectdp;
+  filter_divergent_priors(pgid, curmap, g_ceph_context->_conf->osd_hit_set_namespace,
+    ms.divergent_priors, newdp, rejectdp);
+  if (debug) {
+    for (divergent_priors_t::iterator i = newdp.begin();
+         i != newdp.end(); ++i)
+      cerr << "Keeping divergent_priur " << *i << std::endl;
+    for (divergent_priors_t::iterator i = rejectdp.begin();
+         i != rejectdp.end(); ++i)
+      cerr << "Skipping divergent_prior " << *i << std::endl;
+  }
+
   t = new ObjectStore::Transaction;
-  ret = write_pg(*t, ms.map_epoch, ms.info, newlog, ms.past_intervals);
+  ret = write_pg(*t, ms.map_epoch, ms.info, newlog, ms.past_intervals, ms.divergent_priors);
   if (ret) return ret;
 
   // done, clear removal flag
