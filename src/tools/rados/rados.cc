@@ -1249,6 +1249,23 @@ public:
     ret = 0;
 
     return ret;
+
+
+    // The objectstore_tool format:
+    //   super_header (just file encoding nonsense)
+    //   
+    //   WRITE_SECTION
+    //   pg_begin() PG ID, PG shard (whatis?) OSDSuperBlock
+    //     (OSDSuperBlock is decoded from OSD_SUPERBLOCK_POBJECT in the store)
+    //
+    //   WRITE_SECTION
+    //   metadata_section
+    //   lots of "past intervals" etc... don't need to worry about this
+    //
+    //   WRITE_SIMPLE
+    //   TYPE_PG_END
+    //   
+
   }
 };
 
