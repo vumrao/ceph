@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Copyright (C) 2013,2014 Cloudwatt <libre.licensing@cloudwatt.com>
-# Copyright (C) 2014 Red Hat <contact@redhat.com>
+# Copyright (C) 2014,2015 Red Hat <contact@redhat.com>
 # Copyright (C) 2014 Federico Gimenez <fgimenez@coit.es>
 #
 # Author: Loic Dachary <loic@dachary.org>
@@ -18,7 +18,7 @@
 # GNU Library Public License for more details.
 #
 CEPH_HELPER_VERBOSE=false
-TIMEOUT=60
+TIMEOUT=120
 PG_NUM=4
 
 if type xmlstarlet > /dev/null 2>&1; then
@@ -866,6 +866,8 @@ function wait_for_clean() {
         if get_is_making_recovery_progress ; then
             timer=0
         elif (( timer >= $TIMEOUT )) ; then
+            ceph pg dump
+            ceph health detail
             return 1
         fi
 

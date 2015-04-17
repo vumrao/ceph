@@ -1778,7 +1778,7 @@ bool pg_stat_t::is_acting_osd(int32_t osd, bool primary) const
     return true;
   } else if (!primary) {
     for(vector<int32_t>::const_iterator it = acting.begin();
-        it != acting.end(); it++)
+        it != acting.end(); ++it)
     {
       if (*it == osd)
         return true;
@@ -3091,6 +3091,36 @@ ostream& operator<<(ostream& out, const pg_log_entry_t& e)
 
 // -- pg_log_t --
 
+// out: pg_log_t that only has entries that apply to import_pgid using curmap
+// reject: Entries rejected from "in" are in the reject.log.  Other fields not set.
+void pg_log_t::filter_log(spg_t import_pgid, const OSDMap &curmap,
+  const string &hit_set_namespace, const pg_log_t &in,
+  pg_log_t &out, pg_log_t &reject)
+{
+  out = in;
+  out.log.clear();
+  reject.log.clear();
+
+  for (list<pg_log_entry_t>::const_iterator i = in.log.begin();
+       i != in.log.end(); ++i) {
+
+    if (i->soid.nspace != hit_set_namespace) {
+      object_t oid = i->soid.oid;
+      object_locator_t loc(i->soid);
+      pg_t raw_pgid = curmap.object_locator_to_pg(oid, loc);
+      pg_t pgid = curmap.raw_pg_to_pg(raw_pgid);
+
+      if (import_pgid.pgid == pgid) {
+        out.log.push_back(*i);
+      } else {
+        reject.log.push_back(*i);
+      }
+    } else {
+      out.log.push_back(*i);
+    }
+  }
+}
+
 void pg_log_t::encode(bufferlist& bl) const
 {
   ENCODE_START(6, 3, bl);
@@ -3606,15 +3636,9 @@ void object_copy_data_t::decode(bufferlist::iterator& bl)
     ::decode(data, bl);
     ::decode(omap_data, bl);
     ::decode(cursor, bl);
-    if (struct_v >= 2)
-      ::decode(omap_header, bl);
-    if (struct_v >= 3) {
-      ::decode(snaps, bl);
-      ::decode(snap_seq, bl);
-    } else {
-      snaps.clear();
-      snap_seq = 0;
-    }
+    ::decode(omap_header, bl);
+    ::decode(snaps, bl);
+    ::decode(snap_seq, bl);
     if (struct_v >= 4) {
       ::decode(flags, bl);
       ::decode(data_digest, bl);

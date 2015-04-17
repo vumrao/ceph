@@ -93,7 +93,7 @@ TYPE(PushReplyOp)
 TYPE(ECUtil::HashInfo)
 
 #include "osd/ECMsgTypes.h"
-TYPE(ECSubWrite)
+TYPE_NOCOPY(ECSubWrite)
 TYPE(ECSubWriteReply)
 TYPE_FEATUREFUL(ECSubRead)
 TYPE(ECSubReadReply)
@@ -185,9 +185,6 @@ TYPE(InoTable)
 
 #include "mds/SnapServer.h"
 TYPEWITHSTRAYDATA(SnapServer)
-
-#include "mds/SessionMap.h"
-TYPE(SessionMapStore)
 
 #include "mds/events/ECommitted.h"
 TYPE(ECommitted)

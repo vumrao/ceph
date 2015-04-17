@@ -982,7 +982,7 @@ void PGMap::print_osd_blocked_by_stats(std::ostream *ss) const
 void PGMap::recovery_summary(Formatter *f, list<string> *psl,
                              const pool_stat_t& delta_sum) const
 {
-  if (delta_sum.stats.sum.num_objects_degraded) {
+  if (delta_sum.stats.sum.num_objects_degraded && delta_sum.stats.sum.num_object_copies > 0) {
     double pc = (double)delta_sum.stats.sum.num_objects_degraded /
       (double)delta_sum.stats.sum.num_object_copies * (double)100.0;
     char b[20];
@@ -998,7 +998,7 @@ void PGMap::recovery_summary(Formatter *f, list<string> *psl,
       psl->push_back(ss.str());
     }
   }
-  if (delta_sum.stats.sum.num_objects_misplaced) {
+  if (delta_sum.stats.sum.num_objects_misplaced && delta_sum.stats.sum.num_object_copies > 0) {
     double pc = (double)delta_sum.stats.sum.num_objects_misplaced /
       (double)delta_sum.stats.sum.num_object_copies * (double)100.0;
     char b[20];
@@ -1014,7 +1014,7 @@ void PGMap::recovery_summary(Formatter *f, list<string> *psl,
       psl->push_back(ss.str());
     }
   }
-  if (delta_sum.stats.sum.num_objects_unfound) {
+  if (delta_sum.stats.sum.num_objects_unfound && delta_sum.stats.sum.num_objects) {
     double pc = (double)delta_sum.stats.sum.num_objects_unfound /
       (double)delta_sum.stats.sum.num_objects * (double)100.0;
     char b[20];
@@ -1152,6 +1152,7 @@ void PGMap::pool_client_io_rate_summary(Formatter *f, ostream *out,
  * @param old_pool_sum      Previous stats sum
  * @param last_ts           Last timestamp for pool
  * @param result_pool_sum   Resulting stats
+ * @param result_pool_delta Resulting pool delta
  * @param result_ts_delta   Resulting timestamp delta
  * @param delta_avg_list    List of last N computed deltas, used to average
  */
@@ -1452,7 +1453,7 @@ void PGMap::get_filtered_pg_stats(string& state, int64_t poolid, int64_t osdid,
 void PGMap::dump_filtered_pg_stats(Formatter *f, set<pg_t>& pgs)
 {
   f->open_array_section("pg_stats");
-  for (set<pg_t>::iterator i = pgs.begin(); i != pgs.end(); i++) {
+  for (set<pg_t>::iterator i = pgs.begin(); i != pgs.end(); ++i) {
     pg_stat_t& st = pg_stat[*i];
     f->open_object_section("pg_stat");
     f->dump_stream("pgid") << *i;
@@ -1466,7 +1467,7 @@ void PGMap::dump_filtered_pg_stats(ostream& ss, set<pg_t>& pgs)
   ss << "pg_stat\tobjects\tmip\tdegr\tmisp\tunf\tbytes\tlog\tdisklog\tstate\t"
     "state_stamp\tv\treported\tup\tup_primary\tacting\tacting_primary\t"
     "last_scrub\tscrub_stamp\tlast_deep_scrub\tdeep_scrub_stamp" << std::endl;
-  for (set<pg_t>::iterator i = pgs.begin(); i != pgs.end(); i++) {
+  for (set<pg_t>::iterator i = pgs.begin(); i != pgs.end(); ++i) {
     pg_stat_t& st = pg_stat[*i];
     ss << *i
        << "\t" << st.stats.sum.num_objects

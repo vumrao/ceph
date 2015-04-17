@@ -1,3 +1,5 @@
+:orphan:
+
 ===============================================
  rbd -- manage rados block device (RBD) images
 ===============================================
@@ -123,16 +125,16 @@ Parameters
 
    Map the image read-only.  Equivalent to -o ro.
 
-.. option:: --image-features features
+.. option:: --image-feature feature
 
-   Specifies which RBD format 2 features are to be enabled when creating
-   an image. The numbers from the desired features below should be added
-   to compute the parameter value:
+   Specifies which RBD format 2 feature should be enabled when creating
+   an image. Multiple features can be enabled by repeating this option
+   multiple times. The following features are supported:
 
-   +1: layering support
-   +2: striping v2 support
-   +4: exclusive locking support
-   +8: object map support
+   layering: layering support
+   striping: striping v2 support
+   exclusive-lock: exclusive locking support
+   object-map: object map support (requires exclusive-lock)
 
 .. option:: --image-shared
 
@@ -237,6 +239,23 @@ Commands
 :command:`mv` [*src-image*] [*dest-image*]
   Renames an image.  Note: rename across pools is not supported.
 
+:command:`image-meta list` [*image-name*]
+  Show metadata held on the image. The first column is the key
+  and the second column is the value.
+
+:command:`image-meta get` [*image-name*] [*key*]
+  Get metadata value with the key.
+
+:command:`image-meta set` [*image-name*] [*key*] [*value*]
+  Set metadata key with the value. They will displayed in `metadata-list`
+
+:command:`image-meta remove` [*image-name*] [*key*]
+  Remove metadata key with the value.
+
+:command:`object-map` rebuild [*image-name*]
+  Rebuilds an invalid object map for the specified image. An image snapshot can be
+  specified to rebuild an invalid object map for a snapshot.
+
 :command:`snap` ls [*image-name*]
   Dumps the list of snapshots inside a specific image.
 
@@ -280,6 +299,14 @@ Commands
 
 :command:`status` [*image-name*]
   Show the status of the image, including which clients have it open.
+
+:command:`feature` disable [*image-name*] [*feature*]
+  Disables the specified feature on the specified image. Multiple features can
+  be specified.
+
+:command:`feature` enable [*image-name*] [*feature*]
+  Enables the specified feature on the specified image. Multiple features can
+  be specified.
 
 :command:`lock` list [*image-name*]
   Show locks held on the image. The first column is the locker
@@ -326,14 +353,17 @@ bottleneck when individual images get large or busy.
 The striping is controlled by three parameters:
 
 .. option:: order
+
   The size of objects we stripe over is a power of two, specifically 2^[*order*] bytes.  The default
   is 22, or 4 MB.
 
 .. option:: stripe_unit
+
   Each [*stripe_unit*] contiguous bytes are stored adjacently in the same object, before we move on
   to the next object.
 
 .. option:: stripe_count
+
   After we write [*stripe_unit*] bytes to [*stripe_count*] objects, we loop back to the initial object
   and write another stripe, until the object reaches its maximum size (as specified by [*order*].  At that
   point, we move on to the next [*stripe_count*] objects.
@@ -362,6 +392,17 @@ the running kernel.
 * crc - Enable CRC32C checksumming for data writes (default).
 
 * nocrc - Disable CRC32C checksumming for data writes.
+
+* cephx_require_signatures - Require cephx message signing, i.e. MSG_AUTH
+  feature bit (since 3.19, default).
+
+* nocephx_require_signatures - Don't require cephx message signing (since
+  3.19).
+
+* tcp_nodelay - Disable Nagle's algorithm on client sockets (since 4.0,
+  default).
+
+* notcp_nodelay - Enable Nagle's algorithm on client sockets (since 4.0).
 
 * osdkeepalive=x - OSD keepalive timeout (default is 5 seconds).
 

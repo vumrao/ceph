@@ -149,7 +149,7 @@ using ceph::crypto::MD5;
 #define ERR_INTERNAL_ERROR       2200
 
 #ifndef UINT32_MAX
-#define UINT32_MAX (4294967295)
+#define UINT32_MAX (0xffffffffu)
 #endif
 
 typedef void *RGWAccessHandle;
@@ -966,6 +966,9 @@ struct rgw_obj_key {
       r = instance.compare(k.instance);
     }
     return (r < 0);
+  }
+  bool operator<=(const rgw_obj_key& k) const {
+    return !(k < *this);
   }
   void encode(bufferlist& bl) const {
     ENCODE_START(1, 1, bl);

@@ -600,10 +600,10 @@ void ReplicatedBackend::submit_transaction(
     &op,
     op_t);
 
-  ObjectStore::Transaction local_t;
-  local_t.set_use_tbl(op_t->get_use_tbl());
+  ObjectStore::Transaction *local_t = new ObjectStore::Transaction;
+  local_t->set_use_tbl(op_t->get_use_tbl());
   if (!(t->get_temp_added().empty())) {
-    get_temp_coll(&local_t);
+    get_temp_coll(local_t);
     add_temp_objs(t->get_temp_added());
   }
   clear_temp_objs(t->get_temp_cleared());
@@ -614,10 +614,7 @@ void ReplicatedBackend::submit_transaction(
     trim_to,
     trim_rollback_to,
     true,
-    &local_t);
-
-  local_t.append(*op_t);
-  local_t.swap(*op_t);
+    local_t);
   
   op_t->register_on_applied_sync(on_local_applied_sync);
   op_t->register_on_applied(
@@ -625,11 +622,16 @@ void ReplicatedBackend::submit_transaction(
       new C_OSD_OnOpApplied(this, &op)));
   op_t->register_on_applied(
     new ObjectStore::C_DeleteTransaction(op_t));
+  op_t->register_on_applied(
+    new ObjectStore::C_DeleteTransaction(local_t));
   op_t->register_on_commit(
     parent->bless_context(
       new C_OSD_OnOpCommit(this, &op)));
-      
-  parent->queue_transaction(op_t, op.op);
+
+  list<ObjectStore::Transaction*> tls;
+  tls.push_back(local_t);
+  tls.push_back(op_t);
+  parent->queue_transactions(tls, op.op);
   delete t;
 }
 
@@ -709,12 +711,18 @@ void ReplicatedBackend::sub_op_modify_reply(OpRequestRef op)
     if (r->ack_type & CEPH_OSD_FLAG_ONDISK) {
       assert(ip_op.waiting_for_commit.count(from));
       ip_op.waiting_for_commit.erase(from);
-      if (ip_op.op)
-	ip_op.op->mark_event("sub_op_commit_rec");
+      if (ip_op.op) {
+        ostringstream ss;
+        ss << "sub_op_commit_rec from " << from;
+	ip_op.op->mark_event(ss.str());
+      }
     } else {
       assert(ip_op.waiting_for_applied.count(from));
-      if (ip_op.op)
-	ip_op.op->mark_event("sub_op_applied_rec");
+      if (ip_op.op) {
+        ostringstream ss;
+        ss << "sub_op_applied_rec from " << from;
+	ip_op.op->mark_event(ss.str());
+      }
     }
     ip_op.waiting_for_applied.erase(from);
 
@@ -1195,14 +1203,16 @@ void ReplicatedBackend::sub_op_modify_impl(OpRequestRef op)
 
   op->mark_started();
 
-  rm->localt.append(rm->opt);
-  rm->localt.register_on_commit(
+  rm->opt.register_on_commit(
     parent->bless_context(
       new C_OSD_RepModifyCommit(this, rm)));
   rm->localt.register_on_applied(
     parent->bless_context(
       new C_OSD_RepModifyApply(this, rm)));
-  parent->queue_transaction(&(rm->localt), op);
+  list<ObjectStore::Transaction*> tls;
+  tls.push_back(&(rm->localt));
+  tls.push_back(&(rm->opt));
+  parent->queue_transactions(tls, op);
   // op is cleaned up by oncommit/onapply when both are executed
 }
 
@@ -1261,7 +1271,7 @@ void ReplicatedBackend::sub_op_modify_commit(RepModifyRef rm)
   get_parent()->update_last_complete_ondisk(rm->last_complete);
 
   Message *m = rm->op->get_req();
-  Message *commit;
+  Message *commit = NULL;
   if (m->get_type() == MSG_OSD_SUBOP) {
     // doesn't have CLIENT SUBOP feature ,use Subop
     MOSDSubOpReply  *reply = new MOSDSubOpReply(
