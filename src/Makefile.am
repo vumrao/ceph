@@ -5,6 +5,8 @@ DIST_SUBDIRS += gmock ocf libs3 java tracing
 
 if WITH_SLIBLMDB
   SUBDIRS += mdb/libraries/liblmdb
+else
+  include Makefile-lmdb.am
 endif
 
 if NO_GIT_VERSION
